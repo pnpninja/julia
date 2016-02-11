@@ -669,23 +669,26 @@ JL_DLLEXPORT size_t rec_backtrace(intptr_t *data, size_t maxsize)
 JL_DLLEXPORT size_t rec_backtrace_ctx(intptr_t *data, size_t maxsize,
                                       unw_context_t *uc)
 {
-#if !defined(_CPU_ARM_) && !defined(_CPU_PPC64_)
     unw_cursor_t cursor;
     unw_word_t ip;
     size_t n=0;
 
     unw_init_local(&cursor, uc);
-    do {
-        if (n >= maxsize)
-            break;
-        if (unw_get_reg(&cursor, UNW_REG_IP, &ip) < 0)
-            break;
-        data[n++] = ip;
-    } while (unw_step(&cursor) > 0);
+    jl_use_safe_op++;
+    // We may want a compiler barrier here
+    JL_TRY {
+        do {
+            if (n >= maxsize)
+                break;
+            if (unw_get_reg(&cursor, UNW_REG_IP, &ip) < 0)
+                break;
+            data[n++] = ip;
+        } while (unw_step(&cursor) > 0);
+    }
+    JL_CATCH {
+    }
+    jl_use_safe_op--;
     return n;
-#else
-    return 0;
-#endif
 }
 #ifdef LIBOSXUNWIND
 size_t rec_backtrace_ctx_dwarf(intptr_t *data, size_t maxsize, unw_context_t *uc)

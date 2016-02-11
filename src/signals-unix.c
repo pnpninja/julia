@@ -98,7 +98,11 @@ static void segv_handler(int sig, siginfo_t *info, void *context)
         return;
     }
 #endif
-    if (jl_in_jl_ || is_addr_on_stack(jl_get_ptls_states(), info->si_addr)) { // stack overflow, or restarting jl_
+    if (jl_use_safe_op) {
+        jl_unblock_signal(sig);
+        throw_internal(jl_stackovf_exception);
+    }
+    else if (is_addr_on_stack(jl_get_ptls_states(), info->si_addr)) { // stack overflow
         jl_unblock_signal(sig);
         jl_throw(jl_stackovf_exception);
     }

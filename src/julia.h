@@ -90,7 +90,9 @@ typedef struct _jl_tls_states_t {
     char *stack_hi;
     jl_jmp_buf *volatile jmp_target;
     jl_jmp_buf base_ctx; // base context of stack
-    int8_t in_jl_;
+    // Prefer safe operations (no backtrace, use raw write instead of libuv)
+    // when we are running in special context like `jl_` or `rec_backtrace_ctx`
+    volatile uint16_t use_safe_op;
     int16_t tid;
     size_t bt_size;
     intptr_t bt_data[JL_MAX_BT_SIZE + 1];

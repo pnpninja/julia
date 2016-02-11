@@ -23,7 +23,7 @@ extern jl_function_t *jl_typeinf_func;
 #if defined(JL_USE_INTEL_JITEVENTS)
 extern unsigned sig_stack_size;
 #endif
-#define jl_in_jl_ jl_get_ptls_states()->in_jl_
+#define jl_use_safe_op jl_get_ptls_states()->use_safe_op
 
 JL_DLLEXPORT extern int jl_lineno;
 JL_DLLEXPORT extern const char *jl_filename;
@@ -254,6 +254,7 @@ jl_get_ptls_states_func jl_get_ptls_states_getter(void);
 void jl_gc_signal_init(void);
 void jl_gc_signal_wait(void);
 #endif
+void JL_NORETURN throw_internal(jl_value_t *e);
 
 void jl_dump_bitcode(char *fname, const char *sysimg_data, size_t sysimg_len);
 void jl_dump_objfile(char *fname, int jit_model, const char *sysimg_data, size_t sysimg_len);
