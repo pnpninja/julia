@@ -666,28 +666,39 @@ JL_DLLEXPORT size_t rec_backtrace(intptr_t *data, size_t maxsize)
     unw_getcontext(&uc);
     return rec_backtrace_ctx(data, maxsize, &uc);
 }
-JL_DLLEXPORT size_t rec_backtrace_ctx(intptr_t *data, size_t maxsize,
-                                      unw_context_t *uc)
+static NOINLINE void rec_backtrace_ctx_inner(volatile intptr_t *data,
+                                             size_t maxsize,
+                                             unw_cursor_t *cursor,
+                                             volatile size_t *n)
 {
-    unw_cursor_t cursor;
-    unw_word_t ip;
-    size_t n=0;
-
-    unw_init_local(&cursor, uc);
+    *n = 0;
     jl_use_safe_op++;
     // We may want a compiler barrier here
     JL_TRY {
         do {
-            if (n >= maxsize)
+            if (*n >= maxsize)
                 break;
-            if (unw_get_reg(&cursor, UNW_REG_IP, &ip) < 0)
+            unw_word_t ip;
+            if (unw_get_reg(cursor, UNW_REG_IP, &ip) < 0)
                 break;
-            data[n++] = ip;
-        } while (unw_step(&cursor) > 0);
+            unw_proc_info_t pi;
+            if (unw_get_proc_info(cursor, &pi) != 0)
+                break;
+            data[(*n)++] = ip;
+        } while (unw_step(cursor) > 0);
     }
     JL_CATCH {
+        *n = (*n) > 0 ? (*n) - 1 : 0;
     }
     jl_use_safe_op--;
+}
+JL_DLLEXPORT size_t rec_backtrace_ctx(intptr_t *data, size_t maxsize,
+                                      unw_context_t *uc)
+{
+    unw_cursor_t cursor;
+    size_t n;
+    unw_init_local(&cursor, uc);
+    rec_backtrace_ctx_inner(data, maxsize, &cursor, &n);
     return n;
 }
 #ifdef LIBOSXUNWIND
