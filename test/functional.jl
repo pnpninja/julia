@@ -198,3 +198,7 @@ let A = collect(Base.Generator(x->2x, Real[1.5,2.5]))
     @test A == [3,5]
     @test isa(A,Vector{Float64})
 end
+
+let f(g) = (@test size(g.iter)==(2,3))
+    f(i+j for i=1:2, j=3:5)
+end
