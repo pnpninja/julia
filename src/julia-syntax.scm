@@ -1439,7 +1439,7 @@
                                 ,(loop (cdr tail)))))))))))
 
 (define (expand-forms e)
-  (if (or (atom? e) (memq (car e) '(quote inert top line module toplevel jlgensym null meta)))
+  (if (or (atom? e) (memq (car e) '(quote inert top line module toplevel val null meta)))
       e
       (let ((ex (get expand-table (car e) #f)))
         (if ex
@@ -2682,7 +2682,7 @@ f(x) = yt(x)
                        (else
                         (let* ((exprs     (lift-toplevel (convert-lambda lam2 '|#anon| #t)))
                                (top-stmts (cdr exprs))
-                               (newlam    (renumber-things (renumber-jlgensym (linearize (car exprs)))))
+                               (newlam    (renumber-things (renumber-vals (linearize (car exprs)))))
                                (vi        (lam:vinfo newlam))
                                ;; insert `list` expression heads to make the lambda vinfo
                                ;; lists quotable
@@ -2813,7 +2813,7 @@ f(x) = yt(x)
 ;; pass 5: convert to linear IR
 
 ;; with this enabled, all nested calls are assigned to numbered locations
-(define *very-linear-mode* #f)
+(define *very-linear-mode* #t)
 
 (define (linearize e)
   (cond ((or (not (pair? e)) (quoted? e)) e)
@@ -2868,7 +2868,11 @@ f(x) = yt(x)
           (let ((temps? (or *very-linear-mode*
                             (expr-contains-p (lambda (x) (and (assignment? x)
                                                               (symbol? (cadr x))))
-                                             (cons 'block (cdr lst))))))
+                                             (cons 'block (cdr lst)))))
+                (simple? (every (lambda (x) (or (simple-atom? x) (symbol? x) (jlgensym? x)
+                                                (and (pair? x)
+                                                     (memq (car x) '(quote inert top copyast)))))
+                                lst)))
             (let loop ((lst  lst)
                        (vals '()))
               (if (null? lst)
@@ -2876,7 +2880,7 @@ f(x) = yt(x)
                   (let* ((arg (car lst))
                          (aval (compile arg break-labels #t #f)))
                     (loop (cdr lst)
-                          (cons (if (and temps?
+                          (cons (if (and temps? (not simple?)
                                          (not (simple-atom? arg))  (not (jlgensym? arg))
                                          (not (simple-atom? aval)) (not (jlgensym? aval))
                                          (not (and (pair? arg)
@@ -2904,7 +2908,7 @@ f(x) = yt(x)
     ;; `tail` means we are in tail position, where a value needs to be `return`ed
     ;; from the current function.
     (define (compile e break-labels value tail)
-      (if (or (not (pair? e)) (memq (car e) '(null jlgensym quote inert top copyast the_exception $
+      (if (or (not (pair? e)) (memq (car e) '(null val quote inert top copyast the_exception $
                                                    cdecl stdcall fastcall thiscall)))
           (cond (tail  (emit-return e))
                 (value e)
@@ -3147,7 +3151,7 @@ f(x) = yt(x)
 (define (make-gensym-generator)
   (let ((jlgensym-counter 0))
     (lambda ()
-      (begin0 `(jlgensym ,jlgensym-counter)
+      (begin0 `(val ,jlgensym-counter)
               (set! jlgensym-counter (+ 1 jlgensym-counter))))))
 
 (define (renumber-jlgensym- e tbl next-jlgensym)
@@ -3167,7 +3171,7 @@ f(x) = yt(x)
           (let ((n (next-jlgensym))) (put! tbl (cadr e) n) n))))
    (else (map (lambda (x) (renumber-jlgensym- x tbl next-jlgensym)) e))))
 
-(define (renumber-jlgensym e)
+(define (renumber-vals e)
   (renumber-jlgensym- e #f error))
 
 (define (label-to-idx-map body)
@@ -3181,8 +3185,8 @@ f(x) = yt(x)
             (loop (cdr stmts) (+ i 1)))))
     tbl))
 
-(define (renumber-labels! body label2idx)
-  (let loop ((stmts (cdr body)))
+(define (renumber-labels! lam label2idx)
+  (let loop ((stmts (cdr (lam:body lam))))
     (if (pair? stmts)
         (let ((el (car stmts)))
           (if (pair? el)
@@ -3192,18 +3196,43 @@ f(x) = yt(x)
                 (else #f)))
           (loop (cdr stmts))))))
 
+(define (renumber-slots lam e)
+  (cond ((symbol? e)
+         (let loop ((vi (car (lam:vinfo lam)))
+                    (i 1))
+           (cond ((null? vi)
+                  (if (memq e (lam:sp lam))
+                      `(static-parameter ,e)
+                      e))
+                 ((eq? e (caar vi))
+                  `(slot ,i))
+                 (else (loop (cdr vi) (+ i 1))))))
+        ((or (atom? e) (quoted? e)) e)
+        ((eq? (car e) 'lambda)
+         (let ((body (renumber-slots e (lam:body e))))
+           `(lambda ,(cadr e) ,(caddr e) ,body)))
+        (else (cons (car e)
+                    (map (lambda (x) (renumber-slots lam x))
+                         (cdr e))))))
+
 (define (renumber-things ex)
-  (if (atom? ex) ex
-      (begin (if (eq? (car ex) 'lambda)
-                 (renumber-labels! (lam:body ex) (label-to-idx-map (lam:body ex))))
-             (for-each renumber-things (cdr ex))))
-  ex)
+  (let do-labels ((ex ex))
+    (if (pair? ex)
+        (begin (if (eq? (car ex) 'lambda)
+                   (renumber-labels! ex (label-to-idx-map (lam:body ex))))
+               (for-each do-labels (cdr ex)))))
+  (let do-slots ((ex ex))
+    (if (atom? ex) ex
+        (if (eq? (car ex) 'lambda)
+            (renumber-slots #f ex)
+            (cons (car ex)
+                  (map do-slots (cdr ex)))))))
 
 ;; expander entry point
 
 (define (julia-expand1 ex)
   (renumber-things
-   (renumber-jlgensym
+   (renumber-vals
     (linearize
      (closure-convert
       (analyze-variables!

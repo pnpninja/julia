@@ -210,7 +210,7 @@ static void jl_init_ast_ctx(jl_ast_context_t *ast_ctx)
     jl_ast_ctx(fl_ctx)->false_sym = symbol(fl_ctx, "false");
     jl_ast_ctx(fl_ctx)->error_sym = symbol(fl_ctx, "error");
     jl_ast_ctx(fl_ctx)->null_sym = symbol(fl_ctx, "null");
-    jl_ast_ctx(fl_ctx)->jlgensym_sym = symbol(fl_ctx, "jlgensym");
+    jl_ast_ctx(fl_ctx)->jlgensym_sym = symbol(fl_ctx, "val");
 
     // Enable / disable syntax deprecation warnings
     // Disable in imaging mode to avoid i/o errors (#10727)
