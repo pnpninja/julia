@@ -344,11 +344,13 @@ All Objects
 
    While it isn't normally necessary, user-defined types can override the default ``deepcopy`` behavior by defining a specialized version of the function ``deepcopy_internal(x::T, dict::ObjectIdDict)`` (which shouldn't otherwise be used), where ``T`` is the type to be specialized for, and ``dict`` keeps track of objects copied so far within the recursion. Within the definition, ``deepcopy_internal`` should be used in place of ``deepcopy``\ , and the ``dict`` variable should be updated as appropriate before returning.
 
-.. function:: isdefined([object,] index | symbol)
+.. function:: isdefined([m::Module,] s::Symbol)
+              isdefined(object, s::Symbol)
+              isdefined(a::AbstractArray, index::Int)
 
    .. Docstring generated from Julia source
 
-   Tests whether an assignable location is defined. The arguments can be an array and index, a composite object and field name (as a symbol), or a module and a symbol. With a single symbol argument, tests whether a global variable with that name is defined in ``current_module()``\ .
+   Tests whether an assignable location is defined. The arguments can be a module and a symbol, a composite object and field name (as a symbol), or an array and index. With a single symbol argument, tests whether a global variable with that name is defined in ``current_module()``\ .
 
 .. function:: convert(T, x)
 
@@ -395,11 +397,11 @@ All Objects
 
    Convert ``y`` to the type of ``x`` (``convert(typeof(x), y)``\ ).
 
-.. function:: widen(type | x)
+.. function:: widen(x)
 
    .. Docstring generated from Julia source
 
-   If the argument is a type, return a "larger" type (for numeric types, this will be a type with at least as much range and precision as the argument, and usually more). Otherwise the argument ``x`` is converted to ``widen(typeof(x))``\ .
+   If ``x`` is a type, return a "larger" type (for numeric types, this will be a type with at least as much range and precision as the argument, and usually more). Otherwise ``x`` is converted to ``widen(typeof(x))``\ .
 
    .. doctest::
 
@@ -977,25 +979,49 @@ System
 
    .. Docstring generated from Julia source
 
-   Given ``@unix? a : b``\ , do ``a`` on Unix systems (including Linux and OS X) and ``b`` elsewhere. See documentation for Handling Platform Variations in the Calling C and Fortran Code section of the manual.
+   Given ``@unix? a : b``\ , do ``a`` on Unix systems (including Linux and OS X) and ``b`` elsewhere. See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
+
+.. function:: @unix_only
+
+   .. Docstring generated from Julia source
+
+   A macro that evaluates the given expression only on Unix systems (including Linux and OS X). See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
 
 .. function:: @osx
 
    .. Docstring generated from Julia source
 
-   Given ``@osx? a : b``\ , do ``a`` on OS X and ``b`` elsewhere. See documentation for Handling Platform Variations in the Calling C and Fortran Code section of the manual.
+   Given ``@osx? a : b``\ , do ``a`` on OS X and ``b`` elsewhere. See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
+
+.. function:: @osx_only
+
+   .. Docstring generated from Julia source
+
+   A macro that evaluates the given expression only on OS X systems. See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
 
 .. function:: @linux
 
    .. Docstring generated from Julia source
 
-   Given ``@linux? a : b``\ , do ``a`` on Linux and ``b`` elsewhere. See documentation for Handling Platform Variations in the Calling C and Fortran Code section of the manual.
+   Given ``@linux? a : b``\ , do ``a`` on Linux and ``b`` elsewhere. See documentation :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
+
+.. function:: @linux_only
+
+   .. Docstring generated from Julia source
+
+   A macro that evaluates the given expression only on Linux systems. See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
 
 .. function:: @windows
 
    .. Docstring generated from Julia source
 
-   Given ``@windows? a : b``\ , do ``a`` on Windows and ``b`` elsewhere. See documentation for Handling Platform Variations in the Calling C and Fortran Code section of the manual.
+   Given ``@windows? a : b``\ , do ``a`` on Windows and ``b`` elsewhere. See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
+
+.. function:: @windows_only
+
+   .. Docstring generated from Julia source
+
+   A macro that evaluates the given expression only on Windows systems. See documentation in :ref:`Handling Operating System Variation <man-handling-operating-system-variation>`\ .
 
 Errors
 ------
